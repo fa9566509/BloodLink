@@ -57,13 +57,18 @@ public sealed class NotificationService(NpgsqlDataSource db)
     /// <summary>Marks notifications read — only rows owned by the caller.</summary>
     public async Task<int> MarkReadAsync(Guid userId, IReadOnlyList<Guid> ids, CancellationToken ct)
     {
+        var (idsAny, idParams) = Features.Shared.SqlParamExpansion.AnyOf("id", ids);
+        var parameters = new DynamicParameters();
+        parameters.AddDynamicParams(idParams);
+        parameters.Add("userId", userId);
+
         await using var conn = await db.OpenConnectionAsync(ct);
-        return await conn.ExecuteAsync(new CommandDefinition("""
+        return await conn.ExecuteAsync(new CommandDefinition($"""
             update notification_history
                set read_at_utc = now()
-             where user_id = @userId and read_at_utc is null and id = any(@ids)
+             where user_id = @userId and read_at_utc is null and id = {idsAny}
             """,
-            new { userId, ids = ids.ToArray() },
+            parameters,
             cancellationToken: ct));
     }
 }

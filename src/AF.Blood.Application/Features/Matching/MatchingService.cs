@@ -2,6 +2,7 @@ using AF.Blood.Application.Abstractions;
 using AF.Blood.Application.Domain;
 using AF.Blood.Application.Features.Audit;
 using AF.Blood.Application.Features.Notifications;
+using AF.Blood.Application.Features.Shared;
 using AF.Blood.Application.Options;
 using Dapper;
 using Microsoft.Extensions.Logging;
@@ -99,7 +100,7 @@ public sealed class MatchingService(
                     order by due_at_utc asc
                     for update skip locked
                     limit 1)
-            returning id as run_id, request_id, wave_index, radius_km
+            returning id as runid, request_id as requestid, wave_index, radius_km
             """,
             new { instanceName, leaseUntil },
             cancellationToken: ct));
@@ -139,14 +140,26 @@ public sealed class MatchingService(
 
         // 2. Select candidates for this wave.
         var compatibleDonorGroups = BloodCompatibility.CompatibleDonorGroups(request.Blood_group);
-        var candidates = (await conn.QueryAsync<CandidateRow>(new CommandDefinition("""
+        var (compatibleAny, compatibleParams) = SqlParamExpansion.AnyOf("g", compatibleDonorGroups);
+        var candidateParams = new DynamicParameters();
+        candidateParams.AddDynamicParams(compatibleParams);
+        candidateParams.AddDynamicParams(new
+        {
+            requestId = run.RequestId,
+            requesterId = request.Requester_id,
+            lat = request.Lat,
+            lon = request.Lon,
+            radiusMetres = (double)(run.Radius_km * 1000),
+            batchSize = _options.BatchSizePerWave,
+        });
+        var candidates = (await conn.QueryAsync<CandidateRow>(new CommandDefinition($"""
             select dp.user_id,
                    st_distance(dp.location, st_setsrid(st_makepoint(@lon, @lat), 4326)::geography) as distance_m
               from donor_profiles dp
              where dp.is_discoverable
                and dp.is_available
                and dp.location is not null
-               and dp.blood_group = any(@compatibleGroups)
+               and dp.blood_group = {compatibleAny}
                and st_dwithin(dp.location, st_setsrid(st_makepoint(@lon, @lat), 4326)::geography, @radiusMetres)
                and dp.user_id <> @requesterId
                and not exists (select 1 from donor_deferrals d
@@ -162,16 +175,7 @@ public sealed class MatchingService(
              order by distance_m asc, dp.user_id asc
              limit @batchSize
             """,
-            new
-            {
-                requestId = run.RequestId,
-                requesterId = request.Requester_id,
-                lat = request.Lat,
-                lon = request.Lon,
-                compatibleGroups = compatibleDonorGroups,
-                radiusMetres = (double)(run.Radius_km * 1000),
-                batchSize = _options.BatchSizePerWave,
-            },
+            candidateParams,
             tx,
             cancellationToken: ct))).ToList();
 

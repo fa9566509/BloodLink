@@ -26,10 +26,19 @@ builder.Services.AddDatabase(connectionString);
 builder.Services.AddApplicationServices(builder.Configuration);
 builder.Services.AddInfrastructure(builder.Configuration);
 
+// Fail fast on a missing or weak signing key instead of failing mid-request.
+var jwtKey = builder.Configuration["Jwt:Key"];
+if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)
+{
+    throw new InvalidOperationException(
+        "Jwt:Key is missing or shorter than 32 characters. Configure it via configuration or the Jwt__Key environment variable.");
+}
+
 // ---------------------------------------------------------------------------
 // Authentication / authorization
 // ---------------------------------------------------------------------------
 builder.Services.AddSingleton<JwtTokenService>();
+builder.Services.AddAuthorization();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -148,11 +157,13 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapHealthEndpoints();
-app.MapAuthEndpoints();
-app.MapDonorEndpoints();
-app.MapRequestEndpoints();
-app.MapNotificationEndpoints();
-app.MapAdminEndpoints();
+
+var api = app.MapGroup("/api/v1");
+api.MapAuthEndpoints();
+api.MapDonorEndpoints();
+api.MapRequestEndpoints();
+api.MapNotificationEndpoints();
+api.MapAdminEndpoints();
 
 app.Run();
 

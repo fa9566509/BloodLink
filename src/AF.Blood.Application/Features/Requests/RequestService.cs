@@ -1,6 +1,7 @@
 using AF.Blood.Application.Abstractions;
 using AF.Blood.Application.Features.Audit;
 using AF.Blood.Application.Features.Matching;
+using AF.Blood.Application.Features.Shared;
 using AF.Blood.Application.Features.Notifications;
 using AF.Blood.Application.Options;
 using AF.Blood.Contracts;
@@ -347,8 +348,13 @@ public sealed class RequestService(
 
         // Requests this donor may help: the requested group can receive the donor's group.
         var compatible = Domain.BloodCompatibility.CompatibleDonorGroupsForDonor(profile.BloodGroup);
+        var (compatibleAny, compatibleParams) = SqlParamExpansion.AnyOf("g", compatible);
 
-        var rows = await conn.QueryAsync<NearbyRow>(new CommandDefinition("""
+        var browseParams = new DynamicParameters();
+        browseParams.AddDynamicParams(compatibleParams);
+        browseParams.AddDynamicParams(new { donorUserId, radiusMetres = profile.Radius * 1000.0, limit = pageSize, offset = (page - 1) * pageSize });
+
+        var rows = await conn.QueryAsync<NearbyRow>(new CommandDefinition($"""
             select r.id, r.blood_group, r.urgency, r.status, r.destination_label,
                    st_y(r.destination::geometry) as lat, st_x(r.destination::geometry) as lon,
                    st_distance(r.destination, dp.location) as distance_m,
@@ -358,25 +364,29 @@ public sealed class RequestService(
              where r.status = 'open'
                and r.expires_at_utc > now()
                and r.requester_id <> @donorUserId
-               and r.blood_group = any(@compatible)
+               and r.blood_group = {compatibleAny}
                and st_dwithin(r.destination, dp.location, @radiusMetres)
              order by st_distance(r.destination, dp.location) asc, r.created_at_utc asc
              limit @limit offset @offset
             """,
-            new { donorUserId, compatible, radiusMetres = profile.Radius * 1000.0, limit = pageSize, offset = (page - 1) * pageSize },
+            browseParams,
             cancellationToken: ct));
 
-        var total = await conn.ExecuteScalarAsync<int>(new CommandDefinition("""
+        var countParams = new DynamicParameters();
+        countParams.AddDynamicParams(compatibleParams);
+        countParams.AddDynamicParams(new { donorUserId, radiusMetres = profile.Radius * 1000.0 });
+
+        var total = await conn.ExecuteScalarAsync<int>(new CommandDefinition($"""
             select count(*)
               from donation_requests r
               join donor_profiles dp on dp.user_id = @donorUserId
              where r.status = 'open'
                and r.expires_at_utc > now()
                and r.requester_id <> @donorUserId
-               and r.blood_group = any(@compatible)
+               and r.blood_group = {compatibleAny}
                and st_dwithin(r.destination, dp.location, @radiusMetres)
             """,
-            new { donorUserId, compatible, radiusMetres = profile.Radius * 1000.0 },
+            countParams,
             cancellationToken: ct));
 
         var items = rows.Select(r => new NearbyRequestDto(
@@ -438,17 +448,22 @@ public sealed class RequestService(
     private static async Task EnsureDonorEligibleToAcceptAsync(
         NpgsqlConnection conn, NpgsqlTransaction tx, Guid donorUserId, CancellationToken ct)
     {
-        var profile = await conn.QuerySingleOrDefaultAsync<(bool Discoverable, bool Available)>(
+        var profileId = await conn.ExecuteScalarAsync<Guid?>(new CommandDefinition("""
+                select user_id from donor_profiles where user_id = @donorUserId
+                """,
+                new { donorUserId }, tx, cancellationToken: ct));
+
+        if (profileId is null)
+        {
+            throw AppException.Invalid("Create a donor profile before accepting requests.");
+        }
+
+        var profile = await conn.QuerySingleAsync<(bool Discoverable, bool Available)>(
             new CommandDefinition("""
                 select is_discoverable as discoverable, is_available as available
                   from donor_profiles where user_id = @donorUserId
                 """,
                 new { donorUserId }, tx, cancellationToken: ct));
-
-        if (profile == default)
-        {
-            throw AppException.Invalid("Create a donor profile before accepting requests.");
-        }
 
         if (!profile.Discoverable || !profile.Available)
         {

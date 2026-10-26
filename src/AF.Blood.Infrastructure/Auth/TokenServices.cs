@@ -137,7 +137,17 @@ public sealed class RefreshTokenService(
                 """,
                 new { row.UserId }, tx, cancellationToken: ct));
             await tx.CommitAsync(ct);
-            throw AppException.Unauthorized("Session token was already used; all sessions were revoked.");
+
+            // A suspension explains the revoked session more precisely than
+            // generic token theft — surface 403 in that case.
+            var suspended = await conn.ExecuteScalarAsync<bool>(new CommandDefinition("""
+                select exists (select 1 from account_suspensions
+                                where user_id = @userId and lifted_at_utc is null)
+                """,
+                new { row.UserId }, cancellationToken: ct));
+            throw suspended
+                ? AppException.Forbidden("This account is suspended. Contact support.")
+                : AppException.Unauthorized("Session token was already used; all sessions were revoked.");
         }
 
         if (row.Expires <= clock.UtcNow)

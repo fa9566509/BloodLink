@@ -1,0 +1,26 @@
+# Keep build contexts small and images reproducible.
+.git
+.github
+.idea
+.vs
+.vscode
+
+bin/
+obj/
+artifacts/
+TestResults/
+
+**/node_modules/
+**/dist/
+**/build/
+**/.dart_tool/
+**/.gradle/
+
+mobile/
+docs/
+database/
+!database/sql
+
+.env
+.env.*
+*.md

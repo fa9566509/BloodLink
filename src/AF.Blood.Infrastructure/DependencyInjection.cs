@@ -36,6 +36,8 @@ public static class DependencyInjection
 
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
+
         services.AddDbContext<AppDbContext>((sp, options) =>
         {
             var dataSource = sp.GetRequiredService<NpgsqlDataSource>();
@@ -101,6 +103,7 @@ public static class DependencyInjection
         services.AddScoped<DonationService>();
         services.AddScoped<PolicyService>();
         services.AddScoped<NotificationService>();
+        services.AddScoped<OutboxDeliveryService>();
         services.AddScoped<DeviceService>();
         services.AddScoped<ModerationService>();
         services.AddScoped<ExpiryService>();

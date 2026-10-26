@@ -597,7 +597,9 @@ public sealed class DonationService(
               join "AspNetRoles" r on r."Id" = ur."RoleId"
              where r."NormalizedName" = 'ADMINISTRATOR'
             """,
-            tx, cancellationToken: ct));
+            parameters: null,
+            transaction: tx,
+            cancellationToken: ct));
 
         foreach (var adminId in adminIds)
         {
