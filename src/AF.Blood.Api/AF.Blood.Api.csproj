@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.14" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.14" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AF.Blood.Application\AF.Blood.Application.csproj" />
+    <ProjectReference Include="..\AF.Blood.Infrastructure\AF.Blood.Infrastructure.csproj" />
+    <ProjectReference Include="..\AF.Blood.Contracts\AF.Blood.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AF.Blood.Api/AF.Blood.Api.csproj" />
+    <Project Path="src/AF.Blood.Application/AF.Blood.Application.csproj" />
+    <Project Path="src/AF.Blood.Contracts/AF.Blood.Contracts.csproj" />
+    <Project Path="src/AF.Blood.Infrastructure/AF.Blood.Infrastructure.csproj" />
+    <Project Path="src/AF.Blood.Worker/AF.Blood.Worker.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/AF.Blood.IntegrationTests/AF.Blood.IntegrationTests.csproj" />
+    <Project Path="tests/AF.Blood.UnitTests/AF.Blood.UnitTests.csproj" />
+  </Folder>
+</Solution>

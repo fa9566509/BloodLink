@@ -1,0 +1,6 @@
+@AF.Blood.Api_HostAddress = http://localhost:5078
+
+GET {{AF.Blood.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
