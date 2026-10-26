@@ -5,8 +5,8 @@
 .vs
 .vscode
 
-bin/
-obj/
+**/bin/
+**/obj/
 artifacts/
 TestResults/
 

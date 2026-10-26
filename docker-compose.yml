@@ -75,7 +75,7 @@ services:
       context: .
       dockerfile: deploy/docker/api.Dockerfile
     container_name: aff-worker
-    command: ["dotnet", "AF.Blood.Worker.dll"]
+    entrypoint: ["dotnet", "worker/AF.Blood.Worker.dll"]
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       DOTNET_ENVIRONMENT: Production

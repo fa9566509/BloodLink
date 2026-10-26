@@ -64,7 +64,7 @@ services:
     build:
       context: .
       dockerfile: deploy/docker/api.Dockerfile
-    command: ["dotnet", "worker/AF.Blood.Worker.dll"]
+    entrypoint: ["dotnet", "worker/AF.Blood.Worker.dll"]
     restart: unless-stopped
     environment:
       DOTNET_ENVIRONMENT: Production

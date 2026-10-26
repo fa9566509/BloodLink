@@ -5,13 +5,15 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
-COPY AF.Blood.slnx ./
 COPY src/AF.Blood.Contracts/AF.Blood.Contracts.csproj src/AF.Blood.Contracts/
 COPY src/AF.Blood.Application/AF.Blood.Application.csproj src/AF.Blood.Application/
 COPY src/AF.Blood.Infrastructure/AF.Blood.Infrastructure.csproj src/AF.Blood.Infrastructure/
 COPY src/AF.Blood.Api/AF.Blood.Api.csproj src/AF.Blood.Api/
 COPY src/AF.Blood.Worker/AF.Blood.Worker.csproj src/AF.Blood.Worker/
-RUN dotnet restore AF.Blood.slnx
+# Restore the two deployable projects only (the .slnx also references the
+# test projects, which are not copied into the image).
+RUN dotnet restore src/AF.Blood.Api/AF.Blood.Api.csproj && \
+    dotnet restore src/AF.Blood.Worker/AF.Blood.Worker.csproj
 
 COPY src/ src/
 RUN dotnet publish src/AF.Blood.Api/AF.Blood.Api.csproj -c Release -o /app/api --no-restore /p:UseAppHost=false
@@ -25,8 +27,7 @@ COPY --from=build /app/worker ./worker
 ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
 
-# Non-root user for defence in depth.
-RUN adduser --disabled-password --uid 2000 aff && chown -R aff /app
-USER aff
+# The .NET runtime images ship a built-in non-root user (`app`, uid 1654).
+USER app
 
 ENTRYPOINT ["dotnet", "api/AF.Blood.Api.dll"]
