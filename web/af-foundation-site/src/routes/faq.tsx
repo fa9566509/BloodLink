@@ -1,3 +1,4 @@
+import { Plus } from "lucide-react";
 import { createFileRoute } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/faq')({
@@ -46,7 +47,7 @@ function FaqPage() {
         <h1>Frequently asked questions</h1>
         {faqs.map((f) => (
           <details key={f.q}>
-            <summary>{f.q}</summary>
+            <summary>{f.q}<Plus className="faq-icon" size={20} aria-hidden="true" /></summary>
             <p>{f.a}</p>
           </details>
         ))}
