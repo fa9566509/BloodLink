@@ -49,3 +49,6 @@ npm-debug.log*
 # ---------- OS ----------
 Thumbs.db
 .DS_Store
+
+# ZCode local session config
+.zcode/
